@@ -1,6 +1,6 @@
 # Projekt na zaliczenie
  
-Aplikacja pozwalająca na granie kółko i krzyżyk, z dodanym czatem jako formularz. Zapamiętuje wyniki gry, hasła i loginy
+Aplikacja pozwalająca na granie w kółko i krzyżyk, z dodanym czatem jako formularz. Zapamiętuje wyniki gry, hasła i loginy
  
 ## Pierwsze uruchomienie
  
