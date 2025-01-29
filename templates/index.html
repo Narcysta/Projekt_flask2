@@ -3,34 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kółko i Krzyżyk</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        .board { display: grid; grid-template-columns: repeat(3, 100px); grid-gap: 5px; margin: 20px auto; }
-        .cell { width: 100px; height: 100px; display: flex; justify-content: center; align-items: center; font-size: 2em; background: #f4f4f4; border: 1px solid #ccc; cursor: pointer; }
-        .cell.taken { cursor: not-allowed; }
-        button { padding: 10px 20px; font-size: 1em; }
-    </style>
+    <title>Kółko i krzyżyk</title>
 </head>
 <body>
-    <h1>Kółko i Krzyżyk</h1>
-    {% if winner %}
-        <h2>{{ winner }} wygrał!</h2>
-    {% endif %}
-    <div class="board">
-        {% for i in range(9) %}
-            <div class="cell {{ 'taken' if game_state[i] }}" onclick="makeMove({{ i }})">
-                {{ game_state[i] }}
-            </div>
+    <h1>Kółko i krzyżyk</h1>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 100px); gap: 10px; margin: 20px auto; text-align: center;">
+        {% for cell in range(9) %}
+        <form method="POST" action="/">
+            <button type="submit" name="move" value="{{ cell }}" style="width: 100px; height: 100px; font-size: 24px;">
+                {{ game_state[cell] }}
+            </button>
+        </form>
         {% endfor %}
     </div>
-    <form action="/reset" method="post">
-        <button type="submit">Zresetuj grę</button>
-    </form>
-    <script>
-        function makeMove(cell) {
-            fetch(`/move/${cell}`, { method: 'POST' }).then(() => window.location.reload());
-        }
-    </script>
+
+
+    {% if winner %}
+        <h2>Zwycięzca: {{ winner }}</h2>
+        <form method="POST" action="/reset">
+            <button type="submit">Resetuj grę</button>
+        </form>
+    {% endif %}
+
+
+    <div>
+        <h2>Czat</h2>
+        <ul>
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+
+        <form method="POST" action="/">
+            <label for="message">Twoja wiadomość:</label>
+            <input type="text" id="message" name="message" required>
+            <button type="submit">Wyślij</button>
+        </form>
+    </div>
 </body>
 </html>

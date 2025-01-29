@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 
 app = Flask(__name__)
 app.secret_key = "secretkey"
@@ -7,9 +8,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todo.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = "login"
 
-# Database models
-class User(db.Model):
+class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
@@ -18,51 +20,64 @@ class GameResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     winner = db.Column(db.String(10), nullable=False)
 
-# Initial game state
-game_state = ["" for _ in range(9)]  # Empty 3x3 board
+game_state = ["" for _ in range(9)]
 current_player = "X"
+messages = []  
 
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 def check_winner():
     """Check if there is a winner."""
     winning_combinations = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8],  # Rows
-        [0, 3, 6], [1, 4, 7], [2, 5, 8],  # Columns
-        [0, 4, 8], [2, 4, 6]              # Diagonals
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6]
     ]
 
     for combo in winning_combinations:
         if game_state[combo[0]] == game_state[combo[1]] == game_state[combo[2]] != "":
             return game_state[combo[0]]
-    
+
     if "" not in game_state:
         return "Draw"
 
     return None
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
+@login_required
 def index():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-
-    global game_state, current_player
+    global game_state, current_player, messages
     winner = check_winner()
-    if winner and winner != "Draw":
-        db.session.add(GameResult(winner=winner))
-        db.session.commit()
-    return render_template("index.html", game_state=game_state, current_player=current_player, winner=winner)
 
-@app.route("/move/<int:cell>", methods=["POST"])
-def move(cell):
-    global game_state, current_player
+    if request.method == "POST" and not winner:  
+        if request.form.get("move"):
+            cell = int(request.form["move"])
+            if game_state[cell] == "":
+                game_state[cell] = current_player
+                current_player = "O" if current_player == "X" else "X"
 
-    if game_state[cell] == "" and not check_winner():  # Only allow move if cell is empty and no winner
-        game_state[cell] = current_player
-        current_player = "O" if current_player == "X" else "X"
+                
+                winner = check_winner()
+                if winner:
+                    db.session.add(GameResult(winner=winner))
+                    db.session.commit()
 
-    return redirect(url_for("index"))
+        message = request.form.get("message")
+        if message:
+            messages.append(message)
+
+    return render_template(
+        "index.html",
+        game_state=game_state,
+        current_player=current_player if not winner else None,  
+        winner=winner,
+        messages=messages
+    )
 
 @app.route("/reset", methods=["POST"])
+@login_required
 def reset():
     global game_state, current_player
     game_state = ["" for _ in range(9)]
@@ -76,7 +91,7 @@ def login():
         password = request.form["password"]
         user = User.query.filter_by(username=username, password=password).first()
         if user:
-            session["user_id"] = user.id
+            login_user(user)
             return redirect(url_for("index"))
         else:
             return "Invalid credentials, please try again."
@@ -99,8 +114,9 @@ def register():
     return render_template("register.html")
 
 @app.route("/logout")
+@login_required
 def logout():
-    session.pop("user_id", None)
+    logout_user()
     return redirect(url_for("login"))
 
 if __name__ == "__main__":
